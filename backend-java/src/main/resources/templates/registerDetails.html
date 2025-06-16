@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>New User Registration</title>
+</head>
+<body>
+    <h2>New User Registration</h2>
+    <p><strong>Name:</strong> <span th:text="${user.name}"></span></p>
+    <p><strong>Email:</strong> <span th:text="${user.email}"></span></p>
+    <p><strong>Company Name:</strong> <span th:text="${user.companyName}"></span></p>
+    <p><strong>Registration Number:</strong> <span th:text="${user.regNumber}"></span></p>
+    <p><strong>Job Title:</strong> <span th:text="${user.jobTitle}"></span></p>
+    <p><strong>Message:</strong> <span th:text="${user.message}"></span></p>
+</body>
+</html>

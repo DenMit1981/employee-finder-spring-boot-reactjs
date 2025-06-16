@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: employee-finder
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/recruitmentdb
+    username: test
+    password: test
+    hikari:
+      maximum-pool-size: 2
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: "*"
+  kafka:
+    bootstrap-servers: 127.0.0.1:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: recruitment-consumer
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  liquibase:
+    enabled: true
+    drop-first: true
+    change-log: classpath:db/changelog/db-changelog-master.yaml
+    default-schema: public
+    contexts: migrated
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: public
+  mail:
+    properties:
+      mail.smtp.socketFactory.port: 465
+      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
+  config:
+    import: 'optional:configserver:'
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 5MB
+  permitted:
+    url:
+      http://localhost:3000
+mail:
+  host: smtp.mail.ru
+  port: 587
+  username: denmit777@mail.ru
+  password: aaCFGpWCYNSeyfg5m8Dm
+  transport:
+    protocol: smtp
+  properties:
+    mail.smtp.auth: true
+    mail.smtp.starttls.enable: true
+  debug: true
+jwt:
+  secret: c2Rmc2RmZHNmc2Rmc2RmZHNmc2Rmc2Rmsdffffffffsdfsdfsdf878787sd8f7s7df78sd87f78sdf87
+  lifetime: 600m
+topic:
+  registration: registration
+  selection: selection
+security:
+  permitted:
+    urls: /employee-finder/**, api/v1/resumes/**
+minio:
+  bucket: user-files
+  url: http://localhost:9002
+  accessKey: minioadmin
+  secretKey: minioadmin
+server:
+  port: 8081
+logging:
+  level:
+    -root: INFO
+springdoc:
+  api-docs:
+    path: /employee-finder/v3/api-docs
+  swagger-ui:
+    path: /employee-finder/swagger-ui.html
+openapi:
+  service:
+    url: http://localhost:8081
+custom:
+  resume-url: http://localhost:8081/api/v1/resumes/download/
