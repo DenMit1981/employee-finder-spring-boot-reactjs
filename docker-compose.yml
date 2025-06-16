@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  backend-java:
+    build:
+      context: ./backend-java
+      dockerfile: Dockerfile
+    container_name: backend-java
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/recruitmentdb
+      SPRING_DATASOURCE_USERNAME: test
+      SPRING_DATASOURCE_PASSWORD: test
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-employee:9092
+      MINIO_BUCKET: user-files
+      MINIO_URL: http://minio-employee:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      - db
+      - kafka-employee
+      - minio-employee
+      - createbuckets-employee
+    networks:
+      - app-network
+
+  frontend-react:
+    build:
+      context: ./frontend-react
+      dockerfile: Dockerfile
+    container_name: frontend-react
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend-react:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend-java
+    networks:
+      - app-network
+
+  db:
+    image: postgres:14
+    container_name: recruitmentdb
+    environment:
+      POSTGRES_DB: recruitmentdb
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  zookeeper-employee:
+    image: confluentinc/cp-zookeeper:7.4.3
+    container_name: zookeeper-employee
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - app-network
+
+  kafka-employee:
+    image: confluentinc/cp-kafka:7.4.3
+    container_name: kafka-employee
+    depends_on:
+      - zookeeper-employee
+    ports:
+      - "29092:29092"
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-employee:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-employee:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - app-network
+
+  kafdrop-employee:
+    image: obsidiandynamics/kafdrop
+    container_name: kafdrop-employee
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: kafka-employee:9092
+      JVM_OPTS: "-Xms32M -Xmx128M"
+    depends_on:
+      - kafka-employee
+    networks:
+      - app-network
+
+  minio-employee:
+    image: minio/minio:latest
+    container_name: minio-employee
+    ports:
+      - "9002:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./data/storage:/data
+    command: server --console-address ":9001" /data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  upload-resumes:
+    image: minio/mc:latest
+    depends_on:
+      - minio-employee
+    volumes:
+      - ./resumes:/resumes
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      mc alias set local http://minio-employee:9000 minioadmin minioadmin;
+      mc mb -p local/user-files || echo 'Bucket exists';
+      mc policy set public local/user-files;
+      mc mirror --overwrite /resumes local/user-files;
+      "
+    networks:
+      - app-network
+    restart: on-failure
+
+  createbuckets-employee:
+    image: minio/mc:latest
+    container_name: createbuckets-employee
+    depends_on:
+      - minio-employee
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      mc alias set local http://minio-employee:9000 minioadmin minioadmin;
+      mc mb local/user-files || echo 'Bucket already exists';
+      mc policy set public local/user-files;
+      "
+    networks:
+      - app-network
+    restart: on-failure
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
